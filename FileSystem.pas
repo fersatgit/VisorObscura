@@ -7,7 +7,7 @@ uses
 function  wsprintfA(buf,fmt: PAnsiChar):dword;cdecl;varargs;external user32;
 function  Deflate(indata, outdata: pointer): Cardinal;
 function  StrCmp(str1,str2:PAnsiChar; len: dword): boolean;
-function  GetFileData(name:PAnsiChar;out size: dword):pointer;
+function  GetFileData(name:PAnsiChar;out size: dword;mandatory: boolean=true):pointer;
 procedure LoadModule(filename: PWideChar);
 procedure CloseHandles;
 
@@ -395,18 +395,20 @@ var
 begin
   result:=true;
   for i:=0 to len-1 do
-    if str1[i]<>str2[i] then
+    if (ord(str1[i]) xor ord(str2[i])) and byte(not 32)<>0 then
     begin
       result:=false;
       exit;
     end;
 end;
 
-function GetFileData(name:PAnsiChar;out size: dword):pointer;
+function GetFileData(name:PAnsiChar;out size: dword;mandatory: boolean=true):pointer;
 var
   i:   dword;
   Buf: array[0..255] of AnsiChar;
 begin
+  size:=0;
+  result:=0;
   for i:=FATLen-1 downto 0 do
     with FAT[i] do
      if StrCmp(filename,name,pcardinal(@filename[-4])^) then
@@ -419,11 +421,14 @@ begin
        end
        else
          result:=pointer(LongInt(map)+DirEntry^.Offset);
-         exit;
+       exit;
      end;
-  Buf[wsprintfA(@buf,'Файл "%s" не найден в архиве.',name)]:=#0;
-  MessageBoxA(0,@Buf,0,0);
-  ExitProcess(0);
+  if mandatory then
+  begin
+    Buf[wsprintfA(@buf,'Файл "%s" не найден в архиве.',name)]:=#0;
+    MessageBoxA(0,@Buf,0,0);
+    ExitProcess(0);
+  end;  
 end;
 
 initialization
